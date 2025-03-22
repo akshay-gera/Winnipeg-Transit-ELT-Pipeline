@@ -16,3 +16,5 @@ dag_GCP_Test.py
 exampledag.py
 .astro 
 extracted_data/
+Trial.ipynb
+test_dag_example.py

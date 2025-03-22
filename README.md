@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Overview
 ========
 
@@ -46,3 +47,6 @@ Contact
 =======
 
 The Astronomer CLI is maintained with love by the Astronomer team. To report a bug or suggest a change, reach out to our support.
+=======
+# Winnipeg-Transit-ELT-Pipeline
+>>>>>>> 71dcfd21a62182c6e4d1de4be0dbd4b9b3f64f9d
