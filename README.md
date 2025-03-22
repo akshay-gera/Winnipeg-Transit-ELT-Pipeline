@@ -39,7 +39,21 @@ The ETL pipeline consists of the following key components:
 - **Docker**: The containerization platform used to create a portable and consistent environment for running the ETL pipeline.
 
 ## Project Structure
-Winnipeg-Transit-ETL-Pipeline/ │ ├── dags/ # Airflow DAGs │ └── extract_and_load_pipeline.py # The main Airflow DAG │ ├── extracted_data/ # Folder for extracted CSV data │ ├── utils/ # Utility functions (extraction, saving CSVs, etc.) │ ├── ETL_functions.py # Functions for extracting and processing data │ ├── function_df_to_csv.py # Helper functions for saving dataframes as CSV files │ └── function_todays_extracted_data.py # Function to fetch today's extracted data │ ├── Dockerfile # Dockerfile to build the image ├── docker-compose.override.yml # Docker Compose file for local development ├── requirements.txt # Python dependencies ├── .gitignore # Git ignore file └── README.md # Project documentation
+└── dags
+    └── .airflowignore
+    └── ExtractLoad.py
+└── utils
+    └── ETL_functions.py
+    └── function_df_to_csv.py
+    └── function_todays_extracted_data.py
+└── .dockerignore
+└── .gitignore
+└── docker-compose.override.yml
+└── Dockerfile
+└── packages.txt
+└── README.md
+└── requirements.txt
+
 
 ## Approach
 
