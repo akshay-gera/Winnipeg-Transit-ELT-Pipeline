@@ -1,0 +1,11 @@
+
+services:
+  scheduler:
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/usr/local/airflow/winnipeg-transit-data-pipeline-ae83de2d5487.json
+    volumes:
+      - ./extracted_data:/usr/local/airflow/extracted_data  # Mount local 'extracted_data' folder
+
+  webserver:
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/usr/local/airflow/winnipeg-transit-data-pipeline-ae83de2d5487.json
