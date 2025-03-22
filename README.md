@@ -21,7 +21,7 @@ The core goal of this project is to automate the extraction of transit data from
 
 The ETL pipeline consists of the following key components:
 
-1. **Data Extraction (API)**: Data is fetched from the **Winnipeg Transit API** for the bus routes and their respective variants. The API provides bus route details, including variant data which can be used to fetch destination information.
+1. **Data Extraction (API)**: Data is fetched from the **Winnipeg Transit API** for the bus routes and their respective variants. The API provides bus route details, including variant data, which can be used to fetch destination information.
 
 2. **Data Processing**: The extracted data is then processed, including transforming the routes data into a structured format and retrieving destination details for each variant.
 
@@ -39,26 +39,7 @@ The ETL pipeline consists of the following key components:
 - **Docker**: The containerization platform used to create a portable and consistent environment for running the ETL pipeline.
 
 ## Project Structure
-
-Winnipeg-Transit-ETL-Pipeline/
-│
-├── dags/
-│   └── extract_and_load_pipeline.py        # The main Airflow DAG
-│
-├── extracted_data/                         # Folder for extracted CSV data
-│
-├── utils/                                  # Utility functions (extraction, saving CSVs, etc.)
-│   ├── ETL_functions.py
-│   ├── function_df_to_csv.py
-│   └── function_todays_extracted_data.py
-│
-├── Dockerfile                              # Dockerfile to build the image
-├── docker-compose.override.yml             # Docker Compose file for local development
-├── requirements.txt                        # Python dependencies
-├── .gitignore                              # Git ignore file
-└── README.md                               # Project documentation
-
-
+Winnipeg-Transit-ETL-Pipeline/ │ ├── dags/ # Airflow DAGs │ └── extract_and_load_pipeline.py # The main Airflow DAG │ ├── extracted_data/ # Folder for extracted CSV data │ ├── utils/ # Utility functions (extraction, saving CSVs, etc.) │ ├── ETL_functions.py # Functions for extracting and processing data │ ├── function_df_to_csv.py # Helper functions for saving dataframes as CSV files │ └── function_todays_extracted_data.py # Function to fetch today's extracted data │ ├── Dockerfile # Dockerfile to build the image ├── docker-compose.override.yml # Docker Compose file for local development ├── requirements.txt # Python dependencies ├── .gitignore # Git ignore file └── README.md # Project documentation
 
 ## Approach
 
@@ -69,6 +50,8 @@ The **Winnipeg Transit API** provides endpoints to extract information about bus
 - The function fetches bus route data from the API endpoint.
 - The variants for each bus route are extracted and stored as a list of variant keys.
 
+**Note**: During this phase, I used the **Astronomer CLI** to jump straight into Airflow DAG development, avoiding setup issues related to installation and environment configuration. This allowed for faster iterations and testing of the pipeline.
+
 ### 2. **Data Processing**
 
 After the routes and variants data is fetched, we extract the destination data for each variant using the `fetch_destinations_for_variants` function. This process involves:
@@ -77,12 +60,16 @@ After the routes and variants data is fetched, we extract the destination data f
 - Processing the data into a structured format (Pandas DataFrame).
 - Saving the processed data into a CSV file using the `save_df_to_csv` function.
 
+**Note**: At this stage, I mounted a volume directory using the **Docker Compose Override file**, allowing the extracted data to reside locally before the subsequent cloud steps (e.g., BigQuery loading). This helped in organizing the flow of the data and testing locally before pushing it to the cloud.
+
 ### 3. **Data Loading to BigQuery**
 
 Once the data is processed, the pipeline pushes the resulting CSVs (for routes and destinations) into **Google Cloud BigQuery** using the **BigQueryHook** from Airflow. The `push_to_big_query` function is responsible for:
 
 - Reading the CSV files containing the processed data.
 - Loading the data into the designated BigQuery tables using the `to_gbq` method.
+
+**Note**: To ensure that Airflow can communicate effectively with **BigQuery**, I had to enable the **Google Cloud Resource Manager API** and provide the service account email with appropriate IAM permissions.
 
 ### 4. **Airflow DAG**
 
@@ -95,9 +82,12 @@ The Airflow DAG defines the pipeline’s schedule, dependencies, and task flow. 
 
 The Airflow DAG is scheduled to run daily, ensuring that the data is always up-to-date in BigQuery.
 
+**Note**: Using **XCom** in Airflow, I passed the list of route variants from the routes extraction task to the destinations extraction task, allowing for more efficient handling of destination data for each route variant.
+
 ## Technologies
 
 - **Python 3.x**: The primary language used for the ETL pipeline.
+- **Astro CLI**: Pre-packaged installation and environment configuration for Apache Airflow
 - **Apache Airflow**: Orchestration tool to manage the ETL pipeline.
 - **Docker**: Containerization of the application.
 - **Google Cloud BigQuery**: Data warehouse for storing the extracted and processed transit data.
@@ -120,8 +110,8 @@ The Airflow DAG is scheduled to run daily, ensuring that the data is always up-t
 3. **Set Up Google Cloud Credentials**:
     Make sure you have configured Google Cloud credentials to access BigQuery.
 
-4. **Run Airflow Locally**:
-    You can run the Airflow DAG locally using Docker. If you’re using **Astronomer CLI**, you can run:
+4. **Run Airflow Locally with Astro CLI**:
+    You can run the Airflow DAG locally using **Astronomer CLI**. First, ensure that **Astro CLI** is installed, then run the following command:
     ```bash
     astro dev start
     ```
@@ -131,4 +121,4 @@ The Airflow DAG is scheduled to run daily, ensuring that the data is always up-t
 
 ## Conclusion
 
-This **Winnipeg Transit ETL Pipeline** provides an automated way to extract, process, and load transit data into Google Cloud BigQuery for further analysis. The project leverages **Apache Airflow** for orchestration and **Docker** for portability, ensuring a robust and scalable solution for managing transit data.
+The **Winnipeg Transit ETL Pipeline** provides an automated, scalable solution for fetching, processing, and loading transit data into **Google BigQuery**. By leveraging **Apache Airflow** for orchestration, **Docker** for containerization, and **Google Cloud BigQuery** for data storage, this pipeline offers a reliable way to manage and analyze large transit datasets.
