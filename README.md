@@ -41,22 +41,22 @@ The ETL pipeline consists of the following key components:
 ## Project Structure
 This project follows a typical structure for an ETL pipeline. Below is an explanation of each component within the directory structure:
 
-```Winnipeg Transit ELT Pipeline
-.
+```
+Winnipeg Transit ELT Pipeline
 ├── dags/                                    # Contains Directed Acyclic Graphs (DAGs) for workflow automation.
-│   └── .airflowignore                        # Tells Apache Airflow which files or directories to ignore.
+│   └── .airflowignore                        
 │   └── ExtractLoad.py                        # Script for extracting and loading data as part of the ETL pipeline.
 ├── utils/                                   # Contains utility scripts that provide helper functions.
-│   └── ETL_functions.py                      # Functions related to ETL process like data extraction, transformation, and loading.
+│   └── ETL_functions.py                      # Functions related to ETL processes like data extraction, transformation, and loading.
 │   └── function_df_to_csv.py                 # Converts DataFrame into CSV format for saving or further processing.
 │   └── function_todays_extracted_data.py     # Extracts today's data for processing in the pipeline.
-├── .dockerignore                             # Specifies files and directories that should be excluded from the Docker image.
-├── .gitignore                                # Specifies files and directories that should be ignored by Git.
+├── .dockerignore                             
+├── .gitignore                                
 ├── docker-compose.override.yml               # Overrides Docker Compose settings, typically used in development environments.
 ├── Dockerfile                                # Contains instructions for building the Docker image of the project.
-├── packages.txt                             # Lists additional packages or dependencies for the project.
-├── README.md                                 # Provides an overview of the project, installation instructions, and usage.
-├── requirements.txt                          # Lists the Python dependencies to be installed using pip.
+├── packages.txt                             
+├── README.md
+├── requirements.txt                          
 ```
 
 ## Approach
