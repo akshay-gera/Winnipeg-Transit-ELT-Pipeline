@@ -166,3 +166,89 @@ def fetch_destinations_for_variants(variant_list, url, headers, key, dataset_nam
 
 
 
+def make_api_call_for_bus_variants(url, headers, key, variant_key, dataset_name='stops'):
+    """
+    Makes api call to fetch bus stops data for each bus variant.
+
+    Args:
+        url (str): The base URL of the API.
+        headers (dict): The headers to be included in the request.
+        key (str): The API key used for authentication.
+        variant_key (str): The unique key for the variant for which the stops are being fetched.
+        dataset_name (str, optional): The name of the dataset to fetch. For this function, it is 'stops'.
+
+    Returns:
+        dict or None: A json dictionary containing the destination data if successful, otherwise None.
+    
+    Logs errors if the request fails or the status code is not 200.
+    """
+    api_url = f"{url}/{dataset_name}.json?api-key={key}&variant={variant_key}"
+    
+    try:
+        response = requests.get(api_url, headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logging.error(f"Failed to fetch {dataset_name} for variant {variant_key}. Status Code: {response.status_code}")
+            return None
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching {dataset_name} for variant {variant_key}: {e}")
+        return None
+    
+def fetch_data_for_variants(variant_list, url, headers, key, dataset_name='stops'):
+    """
+    Processes a list of variants (which comes through routes dataset) and  runs for loop to fetch destinations for each variant.
+
+    Args:
+        variant_list (list): A list of variant keys to fetch destination data for.
+        url (str): The base URL of the API.
+        headers (dict): The headers to be included in the request.
+        key (str): The API key used for authentication.
+        dataset_name (str, optional): The name of the dataset to fetch. Default is 'destinations'.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the variant keys, destination names, and destination IDs.
+    
+    The function will call `get_variant_destinations` for each variant in the list and collect the destinations.
+    It will also respect rate limits by waiting for 0.6 seconds between each request. Since winnipet transit API allows 100 requests per minute.
+    """    
+    all_data_list = []
+    
+    for variant_key in variant_list:
+        logging.info(f"Fetching {dataset_name} for variant {variant_key}")
+        
+        api_data_output = make_api_call_for_bus_variants(url, headers, key, variant_key, dataset_name='stops')
+        
+        if api_data_output:
+            stops = api_data_output.get(dataset_name, [])
+            for stop in stops:
+                # Collecting the required details from each stop
+                stop_data = {
+                    'variant_key': variant_key,  # The variant key from the input list
+                    'stop_id': stop.get('key', None),  # The unique key for the stop
+                    'stop_name': stop.get('name', None),  # The name of the stop
+                    'stop_number': stop.get('number', None),  # The stop number
+                    'direction': stop.get('direction', None),  # The direction of the stop
+                    'side': stop.get('side', None),  # The side of the street (e.g., farside, nearside)
+                    'street_key': stop.get('street', {}).get('key', None),  # The key of the street where the stop is located
+                    'street_name': stop.get('street', {}).get('name', None),  # The name of the street
+                    'cross_street_key': stop.get('cross-street', {}).get('key', None),  # The key for the cross street
+                    'cross_street_name': stop.get('cross-street', {}).get('name', None),  # The name of the cross street
+                    'cross_street_leg': stop.get('cross-street', {}).get('leg', None),  # The leg of the cross street
+                    'centre_utm_zone': stop.get('centre', {}).get('utm', {}).get('zone', None),  # The UTM zone
+                    'centre_utm_x': stop.get('centre', {}).get('utm', {}).get('x', None),  # UTM X coordinate
+                    'centre_utm_y': stop.get('centre', {}).get('utm', {}).get('y', None),  # UTM Y coordinate
+                    'latitude': stop.get('centre', {}).get('geographic', {}).get('latitude', None),  # Latitude in geographic coordinates
+                    'longitude': stop.get('centre', {}).get('geographic', {}).get('longitude', None),  # Longitude in geographic coordinates
+                }
+
+                # Add the stop data to the list for later DataFrame creation
+                all_data_list.append(stop_data)
+        
+        # Wait for 0.6 seconds to not exceed 100 requests per minute
+        time.sleep(0.6)
+    
+    # Convert the collected destinations into a DataFrame
+    df = pd.DataFrame(all_data_list)
+    df['timestamp_fetched'] = pd.Timestamp.now()
+    return df
