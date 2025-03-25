@@ -252,3 +252,77 @@ def fetch_data_for_variants(variant_list, url, headers, key, dataset_name='stops
     df = pd.DataFrame(all_data_list)
     df['timestamp_fetched'] = pd.Timestamp.now()
     return df
+
+def make_api_call_for_bus_stop_features(url, headers, key, stop_number, dataset_name='stops'):
+    """
+    Makes api call to fetch bus stops features data for each bus stop.
+
+    Args:
+        url (str): The base URL of the API.
+        headers (dict): The headers to be included in the request.
+        key (str): The API key used for authentication.
+        variant_key (str): The unique key for the stop number for which the stops features are being fetched.
+        dataset_name (str, optional): The name of the dataset to fetch. For this function, it is 'stops'.
+
+    Returns:
+        dict or None: A json dictionary containing the destination data if successful, otherwise None.
+    
+    Logs errors if the request fails or the status code is not 200.
+    """
+    api_url = f"{url}/{dataset_name}/{stop_number}/features.json?api-key={key}"
+    
+    try:
+        response = requests.get(api_url, headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logging.error(f"Failed to fetch {dataset_name} features for stop number {stop_number}. Status Code: {response.status_code}")
+            return None
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching {dataset_name} features for stop number {stop_number}: {e}")
+        return None
+    
+def fetch_stop_features_for_busstops(stops_list, url, headers, key, dataset_name='stops'):
+    """
+    Processes a list of variants (which comes through routes dataset) and  runs for loop to fetch destinations for each variant.
+
+    Args:
+        variant_list (list): A list of variant keys to fetch destination data for.
+        url (str): The base URL of the API.
+        headers (dict): The headers to be included in the request.
+        key (str): The API key used for authentication.
+        dataset_name (str, optional): The name of the dataset to fetch. Default is 'destinations'.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the variant keys, destination names, and destination IDs.
+    
+    The function will call `get_variant_destinations` for each variant in the list and collect the destinations.
+    It will also respect rate limits by waiting for 0.6 seconds between each request. Since winnipet transit API allows 100 requests per minute.
+    """    
+    all_data_list = []
+    
+    for stop_number in stops_list:
+        logging.info(f"Fetching {dataset_name} for variant {stop_number}")
+        
+        api_data_output = make_api_call_for_bus_stop_features(url, headers, key, stop_number, dataset_name='stops')
+        
+        if api_data_output:
+            stop_features = api_data_output.get("stop-features", [])
+            for stop_feature in stop_features:
+                # Collecting the required details from each stop
+                stop_features_data = {
+                    'stop_number': stop_number,  # The key for the stop
+                    'feature_name': stop_feature.get('name', None),  # The name of the feature
+                    'feature_count': stop_feature.get('count', None)  # The count of the feature
+                }
+
+                # Add the stop data to the list for later DataFrame creation
+                all_data_list.append(stop_features_data)
+        
+        # Wait for 0.6 seconds to not exceed 100 requests per minute
+        time.sleep(0.6)
+    
+    # Convert the collected destinations into a DataFrame
+    df = pd.DataFrame(all_data_list)
+    df['timestamp_fetched'] = pd.Timestamp.now()
+    return df

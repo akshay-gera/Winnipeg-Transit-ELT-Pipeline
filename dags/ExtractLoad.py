@@ -11,7 +11,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.hooks.base_hook import BaseHook
 import os
-from utils.ETL_functions import extract_routes, fetch_destinations_for_variants, fetch_data_for_variants
+from utils.ETL_functions import extract_routes, fetch_destinations_for_variants, fetch_data_for_variants, fetch_stop_features_for_busstops
 from utils.function_df_to_csv import save_df_to_csv
 from utils.function_todays_extracted_data import get_today_extracted_data
 
@@ -63,7 +63,24 @@ def process_stops(dataset_name='stops', **kwargs):
     stops_df = fetch_data_for_variants(variant_list=variant_column, url=base_url, headers=headers, key=API_KEY, dataset_name='stops')
 
     logging.info(f"Fetched {len(stops_df)} stops for all the variants.")
+    # Extracting just the 'variant' column as a list and pushing it to XCom
+    stops_list = stops_df['stop_number'].tolist()
+    # Get unique values
+    stops_list = list(set(stops_list))
+    kwargs['ti'].xcom_push(key='stop_numbers', value=stops_list)
+    logging.info(f"Xcom pushed successfully with {len(stops_list)} records")
     return save_df_to_csv(stops_df, dataset_name, base_dir='/usr/local/airflow/extracted_data')
+
+def process_stop_features(dataset_name='stop_features', **kwargs):
+    # Pull the 'stop_numbers' from XCom
+    stop_numbers = kwargs['ti'].xcom_pull(task_ids='process_stops_task', key='stop_numbers')
+    if stop_numbers is None:
+        logging.error("No stop numbers found in XCom. Exiting...")
+        return None
+    logging.info(f"Fetched {len(stop_numbers)} stop numbers from XCom.")
+    stop_features_df = fetch_stop_features_for_busstops(stop_numbers, url=base_url, headers=headers, key=API_KEY, dataset_name='stop_features')
+    logging.info(f"Fetched {len(stop_features_df)} stop features.")
+    return save_df_to_csv(stop_features_df, dataset_name, base_dir='/usr/local/airflow/extracted_data')
 
 def push_to_big_query(destination_table, project_id, dataset_name, new_data_strategy, **kwargs):
     df = get_today_extracted_data(dataset_name, base_dir='/usr/local/airflow/extracted_data')
@@ -137,8 +154,23 @@ api_stops_extraction_operator = PythonOperator(
 push_stops_to_big_query_operator = PythonOperator(
     task_id='push_stops_to_big_query_task',
     python_callable=push_to_big_query,
-    op_args=['stops', project_id, 'stops', 'append'],
+    op_args=['stops', project_id, 'stops', 'replace'],
+    dag=dag,
+)
+
+# Task Definitions for Processing Stop Features
+api_stop_features_extraction_operator = PythonOperator(
+    task_id='process_stop_features_task',
+    python_callable=process_stop_features,
+    dag=dag,
+    provide_context=True,  # Ensures 'ti' and other context are passed
+)
+# Task Definitions for Pushing Csv to BigQuery
+push_stop_features_to_big_query_operator = PythonOperator(
+    task_id='push_stop_features_to_big_query_task',
+    python_callable=push_to_big_query,
+    op_args=['stop_features', project_id, 'stop_features', 'replace'],
     dag=dag,
 )
 # Task dependencies: This sets the order of task execution
-api_routes_extraction_operator >>  push_routes_to_big_query_operator >> api_destinations_extraction_operator >> push_destinations_to_big_query_operator >> api_stops_extraction_operator >> push_stops_to_big_query_operator
+api_routes_extraction_operator >>  push_routes_to_big_query_operator >> api_destinations_extraction_operator >> push_destinations_to_big_query_operator >> api_stops_extraction_operator >> push_stops_to_big_query_operator >> api_stop_features_extraction_operator >> push_stop_features_to_big_query_operator
