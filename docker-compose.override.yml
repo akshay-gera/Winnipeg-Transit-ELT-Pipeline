@@ -9,3 +9,5 @@ services:
   webserver:
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/usr/local/airflow/winnipeg-transit-data-pipeline-ae83de2d5487.json
+    volumes:
+      - ./dbt:/usr/local/airflow/dbt  # Mounting local 'dbt' folder which contains will contain dbt project tha runs inside docker container
