@@ -18,3 +18,6 @@ exampledag.py
 extracted_data/
 Trial.ipynb
 test_dag_example.py
+profiles/
+dbt/logs/
+dbt/winnipeg_transit_dbt/readme.md
