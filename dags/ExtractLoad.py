@@ -86,12 +86,14 @@ def process_stop_features(dataset_name='stop_features', **kwargs):
 def process_stop_schedules(dataset_name='stop_schedules', **kwargs):
     # Pull the 'stop_numbers' from XCom
     stop_numbers = kwargs['ti'].xcom_pull(task_ids='process_stops_task', key='stop_numbers')
+    # Setting up the time range for the stop schedules. Value is set inside task definition below as 1 hour. If no value assigned we set a default to 1
+    time_range = kwargs.get('time_range', 1)
     if stop_numbers is None:
         logging.error("No stop numbers found in XCom. Exiting...")
         return None
     logging.info(f"Fetched {len(stop_numbers)} stop numbers from XCom.")
     # Fetch the schedules for each stop number
-    schedules_data = fetch_stop_schedules_for_busstops(stop_numbers, url=base_url, headers=headers, key=API_KEY, dataset_name='stops')
+    schedules_data = fetch_stop_schedules_for_busstops(stop_numbers, url=base_url, headers=headers, key=API_KEY, dataset_name='stops', time_range=time_range)
     logging.info(f"Fetched {len(schedules_data)} schedules.")
     return save_df_to_csv(schedules_data, dataset_name, base_dir='/usr/local/airflow/extracted_data')
 
@@ -121,7 +123,8 @@ dag = DAG(
     'Extract_and_Load_Pipeline_Winnipeg_Transit',
     default_args=default_args,
     description='Extracts data from Winnipeg Transit API and loads it to BigQuery',
-    schedule_interval=timedelta(days=1),  # This will run the DAG every day
+    schedule_interval="00 12 * * *",  # Cron expression for 12:00 PM every day to get winnipeg 6AM schedules
+    catchup=False,  # Ensures past runs are not triggered if not needed
 )
 
 # Task Definitions
@@ -191,6 +194,7 @@ api_stop_schedules_extraction_operator = PythonOperator(
     task_id='process_stop_schedules_task',
     python_callable=process_stop_schedules,
     dag=dag,
+     op_args={'time_range': 1}, # Setting the time range for the stop schedules to 1 hour
     provide_context=True,  # Ensures 'ti' and other context are passed
 )
 # Task Definitions for Pushing Csv to BigQuery
@@ -201,4 +205,4 @@ push_stop_schedules_to_big_query_operator = PythonOperator(
     dag=dag,
 )
 # Task dependencies: This sets the order of task execution
-api_routes_extraction_operator >>  push_routes_to_big_query_operator >> api_destinations_extraction_operator >> push_destinations_to_big_query_operator >> api_stops_extraction_operator >> push_stops_to_big_query_operator >> api_stop_features_extraction_operator >> push_stop_features_to_big_query_operator >> api_stop_schedules_extraction_operator >> push_stop_schedules_to_big_query_operator
+api_routes_extraction_operator >>  push_routes_to_big_query_operator >> api_destinations_extraction_operator >> push_destinations_to_big_query_operator >> api_stops_extraction_operator >> push_stops_to_big_query_operator  >> api_stop_schedules_extraction_operator >> push_stop_schedules_to_big_query_operator >> api_stop_features_extraction_operator >> push_stop_features_to_big_query_operator

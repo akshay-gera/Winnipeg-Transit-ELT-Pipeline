@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def flatten_schedule_data(schedules):
     """
@@ -66,7 +66,7 @@ def flatten_schedule_data(schedules):
     df['timestamp_fetched'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     return df   
-def make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, dataset_name='stops'):
+def make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, time_range, dataset_name='stops'):
     """
     Makes api call to get bus scheules for a given stop number.
 
@@ -75,20 +75,25 @@ def make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, dataset
         headers (dict): The headers to be included in the request.
         key (str): The API key used for authentication.
         stop_number (str): The unique key for the stop number for which the schedules are being fetched.
+        time_range (int): The time range in hours for which the schedules are being fetched.
         dataset_name (str, optional): The name of the main dataset to fetch. For this function, it is 'stops'.
 
     Returns:
-        dict or None: A json dictionary containing the destination data if successful, otherwise None.
+        dict or None: A json dictionary containing the stop schedule for the mentioned time range (by default for the next hour from current fetch time) if successful, otherwise None.
     
     Logs errors if the request fails or the status code is not 200.
     """
-    api_url = f"{url}/{dataset_name}/{stop_number}/schedule.json?api-key={key}"
+    # Set the time range for the schedules. By default API picks start time as fetch time so we mention end time
+    start_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    end_time = datetime.now() +  timedelta(hours=time_range)
+    end_time = end_time.strftime('%Y-%m-%dT%H:%M:%S')
+    api_url = f"{url}/{dataset_name}/{stop_number}/schedule.json?api-key={key}&end={end_time}"
     
     
     try:
         response = requests.get(api_url, headers)
         if response.status_code == 200:
-            logging.info(f"Fetched {dataset_name} schedules for stop number {stop_number}")
+            logging.info(f"Fetched {dataset_name} schedules for stop number {stop_number} from start time start_time {start_time} and end time {end_time}")
             return response.json()
         else:
             logging.error(f"Failed to fetch {dataset_name} schedules for stop number {stop_number}. Status Code: {response.status_code} with message {response.text}")
@@ -97,7 +102,7 @@ def make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, dataset
         logging.error(f"Error fetching {dataset_name} schedules for stop number {stop_number}: {e}")
         return None
 
-def fetch_stop_schedules_for_busstops(stops_list, url, headers, key, dataset_name='stops'):
+def fetch_stop_schedules_for_busstops(stops_list, url, headers, key, time_range, dataset_name='stops'):
     """
     Processes a list of stops (which comes through stops dataset) and  runs for loop to fetch stop scheules for each stop.
 
@@ -106,10 +111,11 @@ def fetch_stop_schedules_for_busstops(stops_list, url, headers, key, dataset_nam
         url (str): The base URL of the API.
         headers (dict): The headers to be included in the request.
         key (str): The API key used for authentication.
+        time_range (int): The time range in hours for which the schedules are being fetched.
         dataset_name (str, optional): The name of the dataset to fetch. Default is 'stops'.
 
     Returns:
-        List of json: A list of json dictionaries containing the schedule data for each stop.
+        List of json: A list of json dictionaries containing the schedule data for each stop for the give time range (by default for the next hour).
     
     The function will call `make_api_call_for_bus_stop_schedules` for each stop in the list and append the json output to schedules list.
     It will also respect rate limits by waiting for 0.6 seconds between each request. Since winnipet transit API allows 100 requests per minute.
@@ -118,7 +124,7 @@ def fetch_stop_schedules_for_busstops(stops_list, url, headers, key, dataset_nam
     
     for stop_number in stops_list:
         
-        api_data_output = make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, dataset_name='stops')
+        api_data_output = make_api_call_for_bus_stop_schedules(url, headers, key, stop_number, time_range, dataset_name='stops')
         
         if api_data_output:
             all_schedule_data.append(api_data_output)
