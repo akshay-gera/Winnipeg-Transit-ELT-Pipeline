@@ -83,11 +83,9 @@ def process_stop_features(dataset_name='stop_features', **kwargs):
     logging.info(f"Fetched {len(stop_features_df)} stop features.")
     return save_df_to_csv(stop_features_df, dataset_name, base_dir='/usr/local/airflow/extracted_data')
 
-def process_stop_schedules(dataset_name='stop_schedules', **kwargs):
+def process_stop_schedules(dataset_name='stop_schedules', time_range=1, **kwargs):
     # Pull the 'stop_numbers' from XCom
     stop_numbers = kwargs['ti'].xcom_pull(task_ids='process_stops_task', key='stop_numbers')
-    # Setting up the time range for the stop schedules. Value is set inside task definition below as 1 hour. If no value assigned we set a default to 1
-    time_range = kwargs.get('time_range', 1)
     if stop_numbers is None:
         logging.error("No stop numbers found in XCom. Exiting...")
         return None
@@ -193,8 +191,7 @@ push_stop_features_to_big_query_operator = PythonOperator(
 api_stop_schedules_extraction_operator = PythonOperator(
     task_id='process_stop_schedules_task',
     python_callable=process_stop_schedules,
-    dag=dag,
-     op_args={'time_range': 1}, # Setting the time range for the stop schedules to 1 hour
+    dag=dag, 
     provide_context=True,  # Ensures 'ti' and other context are passed
 )
 # Task Definitions for Pushing Csv to BigQuery
