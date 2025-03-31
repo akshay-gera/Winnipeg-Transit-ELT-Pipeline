@@ -47,3 +47,15 @@ sources:
             - name: departure_estimated
               tests:
                 - not_null
+      
+      - name: stops
+        description: "For each bus variant there are multiple bus stops that the bus will stop at. This table contains the information about the bus stops"
+        columns:
+            - name: stop_number
+              tests:
+                - not_null
+               
+            - name: stop_name
+              tests:
+                - not_null
+              
