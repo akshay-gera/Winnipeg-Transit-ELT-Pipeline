@@ -1,0 +1,49 @@
+version: 2
+
+sources:
+  - name: winnipeg-transit-data-pipeline
+    schema: Raw
+    description: "Raw data from the BigQuery dataset"
+    tables:
+      - name: destinations
+        description: "For each bus variant, the multiple destinations of the bus. Not to be confused with bus stops"
+        columns:
+            - name: variant_key
+              tests:
+                - not_null
+
+      - name: routes
+        description: "A route is a named and numbered pattern of service that covers a certain geographic area with a consistent method of service delivery"
+        columns:
+            - name: variant
+              tests:
+                - not_null
+                - unique
+      
+      - name: stop_features
+        description: "Returns information about any features related to the requested stop. This includes information about the stop's location, the type of stop, and any amenities that are available at the stop. The information returned is based on the stop_id parameter passed in the request."
+        columns:
+            - name: stop_number
+              tests:
+                - not_null
+      - name: stop_schedules
+        description: "The schedule for a specific stop, including the times that buses are expected to arrive at that stop. Returns the schedule information for the requested stop."
+        columns:
+            - name: stop_number
+              tests:
+                - not_null
+            - name: variant_key
+              tests:
+                - not_null
+            - name: arrival_scheduled
+              tests:
+                - not_null
+            - name: arrival_estimated
+              tests:
+                - not_null
+            - name: departure_scheduled
+              tests:
+                - not_null
+            - name: departure_estimated
+              tests:
+                - not_null
